@@ -754,6 +754,11 @@ Result<std::unique_ptr<ResultStream>> MaxComputeClient::executeQuery(
     }
   }
 
+  // 旧版专有云不支持 schema 模型，确保 odps.default.schema hint 被彻底移除
+  if (!config_.namespaceSchema) {
+    original_request.options->hints->erase("odps.default.schema");
+  }
+ 
   // 2.5. 处理 MaxQA 选项
   if (config_.interactiveMode) {
     MCO_LOG_INFO("MaxQA interactive mode is enabled for this query");
