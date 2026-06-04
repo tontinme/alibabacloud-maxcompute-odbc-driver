@@ -794,7 +794,7 @@ Result<std::unique_ptr<ResultStream>> MaxComputeClient::executeQuery(
   // 3. 先通过 EXPLAIN CODE 获取 schema（同步阻塞）
   // 旧版专有云不支持 EXPLAIN OUTPUT 语法，失败时降级为非结构化处理
   auto schema_json_result = impl_->getSchemaJson(original_request);
-  std::string schema_json
+  std::string schema_json;
   if (!schema_json_result.has_value()) {
     MCO_LOG_WARNING("Failed to retrieve schema via EXPLAIN OUTPUT (may be "
                     "unsupported on this cluster), falling back to non-tabular "
