@@ -714,8 +714,10 @@ Result<std::unique_ptr<ResultStream>> MaxComputeClient::executeQuery(
   original_request.options->hints =
       std::make_shared<std::map<std::string, std::string>>(
           parse_result.settings);
-  (*original_request.options->hints)["odps.default.schema"] =
-      impl_->getConfig().schema;
+  if (config_.namespaceSchema) {
+    (*original_request.options->hints)["odps.default.schema"] =
+        impl_->getConfig().schema;
+  }
 
   if (!parse_result.settings.empty() || !config_.globalSettings.empty() ||
       !globalSettings.empty()) {
@@ -723,6 +725,10 @@ Result<std::unique_ptr<ResultStream>> MaxComputeClient::executeQuery(
     original_request.options->hints =
         std::make_shared<std::map<std::string, std::string>>(
             parse_result.settings);
+    if (config_.namespaceSchema) {
+      (*original_request.options->hints)["odps.default.schema"] =
+          impl_->getConfig().schema;
+    }
     // 合并 config.globalSettings 到 hints
     for (const auto &item : config_.globalSettings) {
       (*original_request.options->hints)[item.first] = item.second;
@@ -786,13 +792,17 @@ Result<std::unique_ptr<ResultStream>> MaxComputeClient::executeQuery(
   }
 
   // 3. 先通过 EXPLAIN CODE 获取 schema（同步阻塞）
+  // 旧版专有云不支持 EXPLAIN OUTPUT 语法，失败时降级为非结构化处理
   auto schema_json_result = impl_->getSchemaJson(original_request);
+  std::string schema_json
   if (!schema_json_result.has_value()) {
-    return makeError<std::unique_ptr<ResultStream>>(
-        schema_json_result.error().code,
-        "Failed to retrieve schema: " + schema_json_result.error().message);
+    MCO_LOG_WARNING("Failed to retrieve schema via EXPLAIN OUTPUT (may be "
+                    "unsupported on this cluster), falling back to non-tabular "
+                    "mode: {}",
+                    schema_json_result.error().message);
+  } else {
+    schema_json = schema_json_result.value();
   }
-  std::string schema_json = schema_json_result.value();
   std::shared_ptr<const ResultSetSchema> schema;
   bool non_tabular_result = false;
   if (schema_json.empty() ||
