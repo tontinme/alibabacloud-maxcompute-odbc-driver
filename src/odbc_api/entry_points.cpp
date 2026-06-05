@@ -901,10 +901,15 @@ SQLRETURN GetInfoImpl(SQLHDBC ConnectionHandle, SQLUSMALLINT InfoType,
         // Schema 用法位掩码: 告诉应用在哪些语句中可以使用 schema 限定符。
         // MaxCompute 支持 schema.table 出现在 DML、DDL、UDF 调用、GRANT/REVOKE
         // 中; 不支持索引(INDEX_DEFINITION)。
+        // 旧版集群无 schema 模型时返回 0, 避免 BI 工具生成带 schema 前缀的表名。
         if (InfoValuePtr) {
-          *(SQLUINTEGER *)InfoValuePtr =
-              SQL_SU_DML_STATEMENTS | SQL_SU_PROCEDURE_INVOCATION |
-              SQL_SU_TABLE_DEFINITION | SQL_SU_PRIVILEGE_DEFINITION;
+          if (pConn->getConfigForUpdate().namespaceSchema) {
+            *(SQLUINTEGER *)InfoValuePtr =
+                SQL_SU_DML_STATEMENTS | SQL_SU_PROCEDURE_INVOCATION |
+                SQL_SU_TABLE_DEFINITION | SQL_SU_PRIVILEGE_DEFINITION;
+          } else {
+            *(SQLUINTEGER *)InfoValuePtr = 0;
+          }
         }
         info_length = sizeof(SQLUINTEGER);
         break;
