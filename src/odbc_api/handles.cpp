@@ -1042,8 +1042,11 @@ SQLRETURN StmtHandle::columns(const std::string &catalog,
       schemaName = schema;
     } else if (config.namespaceSchema && !config.schema.empty()) {
       schemaName = config.schema;
+    } else if (config.namespaceSchema) {
+       schemaName = "default";
     } else {
-      schemaName = "default";
+      // 旧版集群无 schema 模型, getTable 会忽略该参数
+      schemaName = "";
     }
 
     auto table_result = m_parent_conn->getSDK()->getTable(schemaName, table);
