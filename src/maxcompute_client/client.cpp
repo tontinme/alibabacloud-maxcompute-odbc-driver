@@ -39,7 +39,11 @@ class MaxComputeClientImpl {
       // Check if the schema model is enabled and update the config accordingly
       bool schema_model_enabled =
           project.isPropertyEnabled("odps.schema.model.enabled", true);
-      config_.namespaceSchema = schema_model_enabled;
+      // 仅当用户未显式设置 NamespaceSchema=false 时才使用服务端配置
+      // 显式设置优先级高于服务端 project 属性
+      if (config_.namespaceSchema) {
+        config_.namespaceSchema = schema_model_enabled;
+      }
 
       if (config_.timezone == "unknown") {
         std::string timezone = project.getProperty("odps.sql.timezone", "UTC");
@@ -337,7 +341,9 @@ class MaxComputeClientImpl {
     if (config_.namespaceSchema) {
       res.emplace_back(config_.schema);
     } else {
-      res.emplace_back("default");
+      // 旧版集群无 schema 模型，返回空 schema 名，避免客户端(如 Power BI)
+      // 据此拼出带 schema 前缀的表名导致解析失败
+      res.emplace_back("");
     }
     return makeSuccess(res);
 
